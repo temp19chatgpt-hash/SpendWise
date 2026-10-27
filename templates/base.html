@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}SpendWise — Calm Financial Clarity{% endblock %}</title>
+  <meta name="description" content="Personal expense tracking application. Message your Telegram bot, see your money clearly.">
+  <link rel="icon" type="image/svg+xml" href="/static/assets/logo.svg">
+  
+  <!-- Typography: Plus Jakarta Sans & Newsreader -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="/static/css/styles.css?v=3.0">
+  <link rel="stylesheet" href="/static/css/components.css?v=3.0">
+  <link rel="stylesheet" href="/static/css/dashboard.css?v=3.3">
+  {% block head_extra %}{% endblock %}
+</head>
+<body>
+  {% block content %}{% endblock %}
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <!-- Core Scripts -->
+  <script src="/static/js/api.js?v=3.5"></script>
+  <script src="/static/js/auth.js?v=3.5"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

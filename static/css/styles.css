@@ -1,0 +1,201 @@
+/* ==========================================================================
+   SpendWise - Core Styles & Design System
+   "Calm Financial Clarity" - Modern Personal Finance
+   ========================================================================== */
+
+:root {
+  /* Surface & Backgrounds */
+  --bg-app: #F7F8F4;
+  --bg-surface: #FFFFFF;
+  --bg-surface-subtle: #F0F3ED;
+  --bg-surface-elevated: #FFFFFF;
+  --bg-card-hover: #FAFBFA;
+
+  /* Typography Colors */
+  --text-primary: #18221D;
+  --text-secondary: #4A5B53;
+  --text-muted: #7A8C83;
+  --text-inverse: #FFFFFF;
+
+  /* Brand Palette (Deep Forest & Muted Sage) */
+  --brand-primary: #22543D;
+  --brand-hover: #19402E;
+  --brand-active: #133324;
+  --brand-light: #EBF3EE;
+  --brand-tint: #F3F8F5;
+  --accent-sage: #8EA893;
+  --accent-sage-light: #DFE8E2;
+
+  /* Status & Semantic Colors */
+  --success: #257A54;
+  --success-light: #E8F5EF;
+  --success-border: #A3D9BE;
+  
+  --danger: #BD3A2B;
+  --danger-light: #FDF2F0;
+  --danger-border: #F3B5AC;
+
+  --warning: #C2781E;
+  --warning-light: #FEF7EE;
+  --warning-border: #FADBB2;
+
+  --info: #2B6CB0;
+  --info-light: #EBF4FC;
+
+  /* Borders & Dividers */
+  --border-subtle: #E2E8E0;
+  --border-medium: #CBD5C9;
+  --border-focus: #22543D;
+
+  /* Elevation & Shadows */
+  --shadow-xs: 0 1px 2px rgba(24, 34, 29, 0.04);
+  --shadow-sm: 0 2px 4px rgba(24, 34, 29, 0.04), 0 1px 2px rgba(24, 34, 29, 0.03);
+  --shadow-md: 0 4px 14px rgba(24, 34, 29, 0.06), 0 1px 3px rgba(24, 34, 29, 0.03);
+  --shadow-lg: 0 12px 28px rgba(24, 34, 29, 0.08), 0 3px 8px rgba(24, 34, 29, 0.04);
+  --shadow-modal: 0 24px 50px rgba(18, 28, 23, 0.18), 0 8px 16px rgba(18, 28, 23, 0.06);
+
+  /* Typography */
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-serif: 'Newsreader', 'Fraunces', Georgia, serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace;
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  /* Spacing Scale */
+  --space-1: 0.25rem;  /* 4px */
+  --space-2: 0.5rem;   /* 8px */
+  --space-3: 0.75rem;  /* 12px */
+  --space-4: 1rem;     /* 16px */
+  --space-5: 1.25rem;  /* 20px */
+  --space-6: 1.5rem;   /* 24px */
+  --space-8: 2rem;     /* 32px */
+  --space-10: 2.5rem;  /* 40px */
+  --space-12: 3rem;    /* 48px */
+
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 240ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: 320ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Base Reset & Box Sizing */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  color-scheme: light;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  line-height: 1.5;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Focus Outline Accessibility */
+:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+/* Typography Helpers */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+h1 { font-size: 1.75rem; letter-spacing: -0.025em; }
+h2 { font-size: 1.35rem; letter-spacing: -0.02em; }
+h3 { font-size: 1.15rem; letter-spacing: -0.015em; }
+h4 { font-size: 1rem; font-weight: 600; }
+
+p {
+  color: var(--text-secondary);
+}
+
+a {
+  color: var(--brand-primary);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--brand-hover);
+}
+
+/* Number / Currency Styling with Editorial Touch */
+.amount-serif {
+  font-family: var(--font-serif);
+  font-feature-settings: "tnum" 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.currency-symbol {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  margin-right: 0.1em;
+  opacity: 0.85;
+}
+
+/* Utility Classes */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.text-muted { color: var(--text-muted); }
+.text-secondary { color: var(--text-secondary); }
+.text-brand { color: var(--brand-primary); }
+.text-danger { color: var(--danger); }
+.text-success { color: var(--success); }
+
+.flex { display: flex; }
+.flex-col { display: flex; flex-direction: column; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.justify-center { justify-content: center; }
+.gap-1 { gap: var(--space-1); }
+.gap-2 { gap: var(--space-2); }
+.gap-3 { gap: var(--space-3); }
+.gap-4 { gap: var(--space-4); }
+
+.w-full { width: 100%; }
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
