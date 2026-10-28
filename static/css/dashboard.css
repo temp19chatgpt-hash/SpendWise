@@ -43,9 +43,17 @@
   display: none;
 }
 
-/* Collapsed Sidebar (Desktop) */
+/* Collapsed Sidebar (Desktop only) */
 .sidebar.is-collapsed {
   width: 72px;
+}
+
+@media (max-width: 768px) {
+  /* Never apply desktop collapsed state on mobile — drawer width is always 280px */
+  .sidebar.is-collapsed {
+    width: 280px;
+    max-width: 85vw;
+  }
 }
 
 .sidebar.is-collapsed .brand-text,
@@ -1760,5 +1768,273 @@
   .comparison-totals-pill {
     width: 100%;
     justify-content: space-between;
+  }
+}
+
+/* ==========================================================================
+   Mobile Sidebar Drawer, Backdrop & Bottom Navigation
+   ========================================================================== */
+
+/* ── Backdrop overlay ─────────────────────────────────────────────────────── */
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  z-index: 199;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.sidebar-backdrop.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ── Mobile Bottom Navigation Bar ────────────────────────────────────────── */
+.mobile-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  /* Show mobile hamburger in topbar */
+  .mobile-menu-btn {
+    display: inline-flex !important;
+  }
+
+  /* ── App shell: stack vertically, no sidebar pushing content ── */
+  .app-shell {
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* ── Sidebar: hidden off-screen by default on mobile ── */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 280px;
+    max-width: 85vw;
+    height: 100dvh;          /* dynamic viewport height — no address-bar overflow */
+    height: 100vh;           /* fallback */
+    z-index: 200;
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border-subtle);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.18);
+    /* Ensure sidebar doesn't collapse on mobile */
+    min-width: 0 !important;
+  }
+
+  /* Sidebar open state — slides in from left */
+  .sidebar.is-open {
+    transform: translateX(0) !important;
+  }
+
+  /* Show X close button inside sidebar on mobile */
+  .mobile-close-btn {
+    display: flex !important;
+  }
+
+  /* Hide desktop collapse toggle on mobile */
+  .sidebar-toggle-btn {
+    display: none !important;
+  }
+
+  /* ── Sidebar content must scroll if nav overflows ── */
+  .sidebar-nav {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ── Sidebar footer always visible at bottom ── */
+  .sidebar-footer {
+    flex-shrink: 0;
+    margin-top: auto;
+  }
+
+  /* ── Main wrapper: full width (sidebar is overlaid, not in flow) ── */
+  .main-wrapper {
+    width: 100%;
+    min-width: 0;
+    padding-bottom: 64px; /* space for bottom nav */
+  }
+
+  /* ── Topbar adjustments ── */
+  .topbar {
+    padding: 0.75rem 1rem;
+  }
+
+  .topbar-actions {
+    gap: 0.5rem;
+  }
+
+  /* Period picker: hide labels, shrink selects */
+  .period-picker {
+    gap: 0.25rem;
+  }
+
+  .period-select {
+    font-size: 0.8125rem;
+    padding: 0.35rem 1.5rem 0.35rem 0.5rem;
+  }
+
+  /* Hide Telegram badge text on very small screens */
+  @media (max-width: 400px) {
+    .js-telegram-status-badge {
+      display: none !important;
+    }
+  }
+
+  /* ── Content area ── */
+  .view-container {
+    padding: 1rem;
+  }
+
+  /* ── Metrics grid: 1-col on tiny, 2-col otherwise ── */
+  .metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+
+  .metric-card {
+    padding: 1rem;
+  }
+
+  .metric-value {
+    font-size: 1.375rem;
+  }
+
+  /* ── Insights grid: 1 column ── */
+  .insights-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* ── Dashboard 2-col grid becomes 1-col ── */
+  .dashboard-grid-2col {
+    grid-template-columns: 1fr;
+  }
+
+  /* ── Tables: allow horizontal scroll ── */
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 0.625rem 0.75rem;
+    font-size: 0.8125rem;
+  }
+
+  /* ── Filter bar: wrap ── */
+  .filter-bar {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .filter-group-left {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  /* ── Bottom Navigation Bar ── */
+  .mobile-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 64px;
+    background-color: #FFFFFF;
+    border-top: 1px solid var(--border-subtle);
+    z-index: 150;
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.08);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  .bottom-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    padding: 0.25rem 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    transition: color 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .bottom-nav-item svg {
+    width: 22px;
+    height: 22px;
+    stroke: currentColor;
+    transition: stroke 0.15s ease;
+  }
+
+  .bottom-nav-item.active,
+  .bottom-nav-item:hover {
+    color: var(--brand-primary);
+  }
+
+  .bottom-nav-item.active svg {
+    stroke: var(--brand-primary);
+  }
+
+  /* ── Modals on mobile: full-width, slide from bottom ── */
+  .modal-container {
+    max-width: 100%;
+    margin: 0;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-height: 90dvh;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .modal-backdrop.is-open {
+    align-items: flex-end;
+  }
+
+  /* ── Telegram banner: stack vertically ── */
+  .telegram-banner-content {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .telegram-banner-card {
+    flex-direction: column;
+    gap: 1rem;
+  }
+}
+
+/* ── Very small screens (< 360px) ── */
+@media (max-width: 360px) {
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .page-heading {
+    font-size: 1.1rem;
+  }
+
+  .btn-primary span {
+    display: none;
   }
 }

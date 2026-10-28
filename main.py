@@ -178,7 +178,7 @@ async def google_callback(request: Request):
 
     db_user = (
     supabase_admin.table("users")
-    .select("id, google_id, email, name")
+    .select("id, google_id, email, name, timezone")
     .eq("google_id", user["sub"])
     .execute()
     )
@@ -195,7 +195,8 @@ async def google_callback(request: Request):
         "id": spendwise_user["id"],
         "google_id": spendwise_user["google_id"],
         "email": spendwise_user["email"],
-        "name": spendwise_user["name"]
+        "name": spendwise_user["name"],
+        "timezone": spendwise_user.get("timezone", "Asia/Kolkata")
     }
 
     return RedirectResponse(url="/overview", status_code=303)
@@ -212,7 +213,7 @@ async def get_current_user(request: Request):
 
     response = (
         supabase_admin.table("users")
-        .select("id, google_id, email, name, telegram_user_id")
+        .select("id, google_id, email, name, telegram_user_id, timezone")
         .eq("id", user["id"])
         .execute()
     )
@@ -230,6 +231,7 @@ async def get_current_user(request: Request):
         "email": user_data["email"],
         "name": user_data["name"],
         "telegram_connected": user_data.get("telegram_user_id") is not None,
+        "timezone": user_data.get("timezone", "Asia/Kolkata"),
     }
 
 @app.get("/api/telegram/status")
@@ -268,6 +270,35 @@ async def disconnect_telegram(request: Request):
     ).eq("id", user["id"]).execute()
 
     return {"message": "Telegram account disconnected successfully"}
+
+@app.patch("/api/user/timezone")
+async def update_user_timezone(request: Request):
+    user = request.session.get("user")
+    if not user or not user.get("id"):
+        raise HTTPException(status_code=401, detail="Not logged in")
+
+    body = await request.json()
+    tz_name = body.get("timezone", "").strip()
+    if not tz_name:
+        raise HTTPException(status_code=400, detail="timezone is required")
+
+    # Validate the timezone name
+    from zoneinfo import ZoneInfo
+    try:
+        ZoneInfo(tz_name)
+    except Exception:
+        raise HTTPException(status_code=400, detail=f"Invalid timezone: {tz_name}")
+
+    supabase_admin.table("users").update(
+        {"timezone": tz_name}
+    ).eq("id", user["id"]).execute()
+
+    # Update session
+    user["timezone"] = tz_name
+    request.session["user"] = user
+
+    return {"timezone": tz_name, "message": "Timezone updated successfully"}
+
 
 @app.get("/api/health")
 def health_check():

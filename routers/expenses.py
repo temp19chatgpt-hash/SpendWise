@@ -10,8 +10,20 @@ from models import (
     BudgetUpdate,
 )
 from database import supabase_admin
-from datetime import date
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 import calendar
+
+
+def _get_user_today(user: dict) -> date:
+    """Get today's date in the user's configured timezone."""
+    tz_name = user.get("timezone", "Asia/Kolkata")
+    try:
+        tz = ZoneInfo(tz_name)
+    except Exception:
+        tz = ZoneInfo("Asia/Kolkata")
+    return datetime.now(tz).date()
+
 
 
 router = APIRouter()
@@ -289,7 +301,7 @@ def get_insights(
 
     # 4. Daily average calculation
     total_spent = sum(float(e.get("amount") or 0) for e in active_data)
-    today = date.today()
+    today = _get_user_today(user)
     if year is not None and month is not None:
         if year == today.year and month == today.month:
             days_count = max(today.day, 1)
@@ -576,7 +588,7 @@ def get_budget_summary(
 
     # 4. Time calculations
     _, days_in_month = calendar.monthrange(year, month)
-    today = date.today()
+    today = _get_user_today(user)
 
     if (year, month) == (today.year, today.month):
         elapsed_days = min(today.day, days_in_month)

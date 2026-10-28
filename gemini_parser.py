@@ -1,7 +1,8 @@
 import os
 import json
 import math
-from datetime import date
+from datetime import date, datetime, timezone as dt_timezone
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 from google import genai
@@ -45,11 +46,23 @@ client = genai.Client(
 async_client = client.aio
 
 
-async def parse_with_gemini(message: str) -> list[dict]:
+def _today_in_tz(user_timezone: str | None = None) -> str:
+    """Return today's date as ISO string in the user's timezone."""
+    if user_timezone:
+        try:
+            tz = ZoneInfo(user_timezone)
+            return datetime.now(tz).date().isoformat()
+        except Exception:
+            pass
+    # Fallback: Asia/Kolkata (IST)
+    return datetime.now(ZoneInfo("Asia/Kolkata")).date().isoformat()
+
+
+async def parse_with_gemini(message: str, user_timezone: str | None = None) -> list[dict]:
     if not message or not message.strip():
         raise ValueError("Please send a message containing expenses.")
 
-    today = date.today().isoformat()
+    today = _today_in_tz(user_timezone)
 
     prompt = f"""
 You are the expense extraction engine for SpendWise.

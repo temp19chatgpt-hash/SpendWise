@@ -1,12 +1,18 @@
-from datetime import date
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 from pydantic import BaseModel, Field
+
+
+def _ist_today() -> date:
+    """Return today's date in IST (Asia/Kolkata) timezone."""
+    return datetime.now(ZoneInfo("Asia/Kolkata")).date()
 
 
 class ExpenseCreate(BaseModel):
     item: str = Field(min_length=1, max_length=100)
     amount: float = Field(ge=0)
     category: str = Field(min_length=1, max_length=50)
-    expense_date: date = Field(default_factory=date.today)
+    expense_date: date = Field(default_factory=_ist_today)
 
 
 class ExpenseUpdate(BaseModel):

@@ -1013,9 +1013,14 @@ const Dashboard = (() => {
         if (tab === 'telegram') {
           // Telegram is a modal, not a real route
           document.getElementById('telegramModal')?.classList.add('is-open');
+          closeMobileSidebar(); // close drawer too
           return;
         }
         navigate(tab);
+        // Auto-close mobile sidebar after navigating
+        if (window.innerWidth <= 768) {
+          closeMobileSidebar();
+        }
       });
     });
 

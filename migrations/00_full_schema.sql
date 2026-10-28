@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT NOT NULL,
     name TEXT,
     telegram_user_id BIGINT UNIQUE,
+    timezone TEXT NOT NULL DEFAULT 'Asia/Kolkata',
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

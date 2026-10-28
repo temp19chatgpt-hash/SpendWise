@@ -244,7 +244,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def get_linked_user(telegram_id: int):
     result = (
         supabase_admin.table("users")
-        .select("id")
+        .select("id, timezone")
         .eq("telegram_user_id", telegram_id)
         .limit(1)
         .execute()
@@ -274,13 +274,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     message = update.message.text
+    user_timezone = user.get("timezone")
 
     await update.message.reply_text(
         "Processing your expenses. Please wait..."
     )
 
     try:
-        expenses = await parse_with_gemini(message)
+        expenses = await parse_with_gemini(message, user_timezone=user_timezone)
     except ValueError as e:
         await update.message.reply_text(f"⚠️ {e}")
         return
