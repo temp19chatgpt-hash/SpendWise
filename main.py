@@ -9,7 +9,10 @@ from telegram_bot import (
     get_webhook_url,
     get_webhook_secret,
     register_webhook,
+    run_reminder_scheduler,
+    check_and_send_evening_reminders,
 )
+import asyncio
 import os
 import logging
 from contextlib import asynccontextmanager
@@ -41,6 +44,7 @@ oauth.register(
 async def lifespan(app: FastAPI):
     # Startup: Initialize Telegram Bot application
     bot_app = None
+    reminder_task = None
     telegram_token = os.getenv("TELEGRAM_BOT_TOKEN")
     if telegram_token:
         try:
@@ -61,6 +65,10 @@ async def lifespan(app: FastAPI):
                     logger.error("Failed to auto-register Telegram webhook on startup: %s", we)
             else:
                 logger.info("No Telegram webhook URL configured; running in local/on-demand mode.")
+
+            # Start background reminder scheduler (evaluates daily at 9:00 PM IST)
+            reminder_task = asyncio.create_task(run_reminder_scheduler(bot_app))
+            logger.info("Evening expense reminder scheduler started.")
         except Exception as e:
             logger.error("Error during Telegram bot startup: %s", e)
     else:
@@ -68,7 +76,15 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    # Shutdown: Stop Telegram Bot cleanly
+    # Shutdown: Stop reminder scheduler and Telegram Bot cleanly
+    if reminder_task:
+        reminder_task.cancel()
+        try:
+            await reminder_task
+        except asyncio.CancelledError:
+            pass
+        logger.info("Evening reminder scheduler stopped.")
+
     if bot_app:
         try:
             await bot_app.stop()
@@ -298,6 +314,20 @@ async def update_user_timezone(request: Request):
     request.session["user"] = user
 
     return {"timezone": tz_name, "message": "Timezone updated successfully"}
+
+
+@app.post("/api/reminders/trigger")
+async def trigger_reminders(request: Request):
+    """Manually evaluate and trigger evening reminders (admin / testing endpoint)."""
+    user = request.session.get("user")
+    auth_header = request.headers.get("X-Reminder-Secret")
+    expected_secret = os.getenv("REMINDER_CRON_SECRET", "")
+
+    if not user and (not expected_secret or auth_header != expected_secret):
+        raise HTTPException(status_code=401, detail="Not authorized")
+
+    stats = await check_and_send_evening_reminders()
+    return {"ok": True, "stats": stats}
 
 
 @app.get("/api/health")

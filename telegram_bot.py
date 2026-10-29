@@ -1,8 +1,10 @@
+import asyncio
 import os
 import hashlib
 import logging
 import secrets
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from database import supabase_admin
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -22,9 +24,10 @@ load_dotenv()
 logger = logging.getLogger("spendwise.telegram")
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
-# In-memory storage fallback for pending expenses and processed update deduplication
+# In-memory storage fallback for pending expenses, update deduplication, and reminder dates
 _in_memory_pending: dict[str, dict] = {}
 _recent_update_ids: set[int] = set()
+_in_memory_reminder_dates: dict[int, str] = {}
 
 # Application singleton instance
 _bot_app_instance: Application | None = None
@@ -234,10 +237,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "👋 Welcome to SpendWise!\n\n"
         "🔗 First, connect your account:\n"
         "1. Sign in to SpendWise with Google.\n"
-        "2. Generate a linking code.\n"
+        "2. Generate a linking code from the Telegram modal.\n"
         "3. Send /link YOUR_CODE here.\n\n"
         "Example: /link abc123xyz\n\n"
-        "Once connected, send your expenses to get started!"
+        "⏰ Features:\n"
+        "• Send expenses as normal messages anytime (e.g. 'Coffee 50, Lunch 150')\n"
+        "• Daily evening reminder at 9:00 PM if no expenses are recorded today\n"
+        "• Use /test_reminder to preview reminder status"
     )
 
 
@@ -698,6 +704,222 @@ async def link_telegram(
 
 
 # ==============================================================================
+# Evening Expense Reminders (9:00 PM Daily Check)
+# ==============================================================================
+
+async def _mark_reminder_sent(user_id: int, today_str: str):
+    """Record that a reminder was sent/processed for today in Supabase and memory."""
+    _in_memory_reminder_dates[user_id] = today_str
+    try:
+        supabase_admin.table("users").update(
+            {"last_reminder_date": today_str}
+        ).eq("id", user_id).execute()
+    except Exception as e:
+        logger.debug("Could not persist last_reminder_date to DB (using in-memory): %s", e)
+
+
+async def check_and_send_evening_reminders(bot=None) -> dict:
+    """Check all linked Telegram users and send an evening reminder at 9:00 PM
+    if no expenses were recorded today in the user's timezone."""
+    if bot is None:
+        app = get_bot_app()
+        bot = app.bot
+
+    stats = {
+        "evaluated": 0,
+        "reminded": 0,
+        "skipped_already_tracked": 0,
+        "skipped_not_time": 0,
+        "skipped_already_sent": 0,
+    }
+
+    # Fetch users with linked telegram accounts
+    users: list[dict] = []
+    try:
+        res = (
+            supabase_admin.table("users")
+            .select("id, name, telegram_user_id, timezone, last_reminder_date")
+            .not_.is_("telegram_user_id", "null")
+            .execute()
+        )
+        users = res.data or []
+    except Exception:
+        # Fallback if last_reminder_date column does not exist yet in Supabase
+        try:
+            res = (
+                supabase_admin.table("users")
+                .select("id, name, telegram_user_id, timezone")
+                .not_.is_("telegram_user_id", "null")
+                .execute()
+            )
+            users = res.data or []
+        except Exception as err:
+            logger.error("Failed to query users for evening reminders: %s", err)
+            return stats
+
+    for user in users:
+        stats["evaluated"] += 1
+        user_id = user["id"]
+        telegram_id = user.get("telegram_user_id")
+        if not telegram_id:
+            continue
+
+        tz_name = user.get("timezone") or "Asia/Kolkata"
+        try:
+            tz = ZoneInfo(tz_name)
+        except Exception:
+            tz = ZoneInfo("Asia/Kolkata")
+
+        now_user = datetime.now(tz)
+        today_str = now_user.date().isoformat()
+
+        # Target: 9:00 PM (21:00) in user's timezone (between 21:00 and 23:59)
+        if now_user.hour < 21:
+            stats["skipped_not_time"] += 1
+            continue
+
+        # Check if already processed/reminded today
+        db_last_date = user.get("last_reminder_date")
+        mem_last_date = _in_memory_reminder_dates.get(user_id)
+        if db_last_date == today_str or mem_last_date == today_str:
+            stats["skipped_already_sent"] += 1
+            continue
+
+        # Check if user has logged any expenses today
+        try:
+            exp_res = (
+                supabase_admin.table("expenses")
+                .select("id")
+                .eq("user_id", user_id)
+                .eq("expense_date", today_str)
+                .limit(1)
+                .execute()
+            )
+            has_expenses = bool(exp_res.data)
+        except Exception as exp_err:
+            logger.error("Error checking today's expenses for user %s: %s", user_id, exp_err)
+            continue
+
+        if has_expenses:
+            # User already tracked an expense today -> do NOT send reminder
+            stats["skipped_already_tracked"] += 1
+            await _mark_reminder_sent(user_id, today_str)
+            continue
+
+        # User has NOT logged any expenses today -> send reminder!
+        user_name = user.get("name") or "there"
+        first_name = user_name.split()[0] if user_name else "there"
+        formatted_date = now_user.strftime("%d %b %Y")
+
+        reminder_text = (
+            f"🌙 <b>Daily Expense Reminder</b>\n\n"
+            f"Hey {first_name}! Just checking in — you haven't tracked any expenses for today (<b>{formatted_date}</b>).\n\n"
+            f"Did you make any purchases today? You can log them quickly right here, e.g.:\n"
+            f"• <i>Lunch 120, Chai 20</i>\n"
+            f"• <i>Metro 40</i>\n"
+            f"• <i>Groceries 350</i>\n\n"
+            f"Just send your expenses as a message! 💬"
+        )
+
+        try:
+            await bot.send_message(
+                chat_id=telegram_id,
+                text=reminder_text,
+                parse_mode="HTML"
+            )
+            stats["reminded"] += 1
+            await _mark_reminder_sent(user_id, today_str)
+            logger.info("Sent evening expense reminder to user %s (telegram_id %s)", user_id, telegram_id)
+        except Exception as send_err:
+            logger.error("Failed to send reminder to telegram_id %s: %s", telegram_id, send_err)
+
+    return stats
+
+
+async def run_reminder_scheduler(app: Application):
+    """Background loop that evaluates evening reminders every 60 seconds."""
+    logger.info("Starting evening reminder background scheduler (target: 9:00 PM IST)...")
+    while True:
+        try:
+            await check_and_send_evening_reminders(app.bot)
+        except Exception as e:
+            logger.error("Unhandled error in reminder scheduler: %s", e)
+        # Sleep for 60 seconds
+        await asyncio.sleep(60)
+
+
+async def test_reminder(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Test the evening reminder immediately for the requesting user."""
+    telegram_user = update.effective_user
+    if not telegram_user or not update.message:
+        return
+
+    try:
+        user = await get_linked_user(telegram_user.id)
+    except Exception:
+        await update.message.reply_text("SpendWise is temporarily unavailable.")
+        return
+
+    if not user:
+        await update.message.reply_text("Please link your account first using /link YOUR_CODE.")
+        return
+
+    tz_name = user.get("timezone") or "Asia/Kolkata"
+    try:
+        tz = ZoneInfo(tz_name)
+    except Exception:
+        tz = ZoneInfo("Asia/Kolkata")
+
+    now_user = datetime.now(tz)
+    today_str = now_user.date().isoformat()
+    formatted_date = now_user.strftime("%d %b %Y")
+
+    # Check today's expenses
+    try:
+        exp_res = (
+            supabase_admin.table("expenses")
+            .select("id, item, amount")
+            .eq("user_id", user["id"])
+            .eq("expense_date", today_str)
+            .execute()
+        )
+        expenses_today = exp_res.data or []
+    except Exception:
+        expenses_today = []
+
+    user_name = user.get("name") or "there"
+    first_name = user_name.split()[0] if user_name else "there"
+
+    if expenses_today:
+        total = sum(float(e["amount"]) for e in expenses_today)
+        status_info = (
+            f"✅ <b>You have already tracked {len(expenses_today)} expense(s) today (Total: ₹{total:.2f}).</b>\n"
+            f"<i>The 9:00 PM reminder will stay silent because you're all set!</i>"
+        )
+    else:
+        status_info = (
+            f"ℹ️ <b>No expenses tracked yet for today.</b>\n"
+            f"<i>If still untracked at 9:00 PM, you will receive the reminder below:</i>"
+        )
+
+    preview_text = (
+        f"🧪 <b>Reminder Configuration Test</b>\n"
+        f"⏰ Schedule: <b>9:00 PM ({tz_name})</b>\n\n"
+        f"{status_info}\n\n"
+        f"────────────────────────\n"
+        f"🌙 <b>Daily Expense Reminder</b>\n\n"
+        f"Hey {first_name}! Just checking in — you haven't tracked any expenses for today (<b>{formatted_date}</b>).\n\n"
+        f"Did you make any purchases today? You can log them quickly right here, e.g.:\n"
+        f"• <i>Lunch 120, Chai 20</i>\n"
+        f"• <i>Metro 40</i>\n"
+        f"• <i>Groceries 350</i>\n\n"
+        f"Just send your expenses as a message! 💬"
+    )
+
+    await update.message.reply_text(preview_text, parse_mode="HTML")
+
+
+# ==============================================================================
 # Telegram Application Factory & Webhook Management
 # ==============================================================================
 
@@ -719,6 +941,7 @@ def create_telegram_app() -> Application:
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("link", link_telegram))
+    app.add_handler(CommandHandler("test_reminder", test_reminder))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.add_handler(CallbackQueryHandler(handle_confirmation))
 
