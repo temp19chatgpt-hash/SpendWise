@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.responses import RedirectResponse
@@ -330,8 +330,10 @@ async def trigger_reminders(request: Request):
     return {"ok": True, "stats": stats}
 
 
-@app.get("/api/health")
-def health_check():
+@app.api_route("/api/health", methods=["GET", "HEAD"])
+def health_check(request: Request):
+    if request.method == "HEAD":
+        return Response(status_code=200)
     return {
         "status": "ok",
         "message": "SpendWise API is running"
